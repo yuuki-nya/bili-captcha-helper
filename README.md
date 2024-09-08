@@ -5,6 +5,15 @@
 ## 部署方式
 
 1. git clone 本项目
+
 2. 安装好node和pnpm，以及radis
-3. 编辑.env，配置好redis连接信息
+
+3. 项目根目录新建 `.env` 文件，配置好redis
+
+   ```bash
+   REDIS_HOST=127.0.0.1
+   REDIS_PORT=6379
+   REDIS_PASSWORD=your_redis_password
+   ```
+
 4. 执行 `pnpm run dev` 
