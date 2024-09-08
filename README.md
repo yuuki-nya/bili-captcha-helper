@@ -16,4 +16,8 @@
    REDIS_PASSWORD=your_redis_password
    ```
 
-4. 执行 `pnpm run dev` 
+4. 执行 `pnpm intstall` 
+
+5. 执行 `pnpm run dev` 
+
+6. 访问 `http://localhost:3000` ，但是需要配置好反向代理，需要在公网上访问到才能使用
