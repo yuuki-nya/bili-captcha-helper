@@ -671,16 +671,30 @@ var _hmt = _hmt || [];
                 const validate = e.validate;
                 const challenge = search.get("challenge");
                 const gt_user = search.get("userid");
-                const res = await fetch("/api/submit", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        validate, challenge, gt_user
-                    }),
-                    headers: {
-                        "content-type": "application/json"
+                
+                try {
+                    const res = await fetch("/api/submit", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            validate, challenge, gt_user
+                        }),
+                        headers: {
+                            "content-type": "application/json"
+                        }
+                    });
+                    
+                    const result = await res.json();
+                    
+                    if (res.ok && result.success) {
+                        alert(result.message || "提交完毕，该窗口可被关闭！");
+                    } else {
+                        alert(result.message || "提交失败，请重试！");
                     }
-                })
-                alert("提交完毕，该窗口可被关闭！");
+                } catch (error) {
+                    console.error('提交错误:', error);
+                    alert("网络错误，请重试！");
+                }
+                
                 window.close();
             }
         }

@@ -1,48 +1,91 @@
 import express from 'express';
-import { config } from 'dotenv';
-import { createClient } from 'redis';
-
-config();
+import { redisClient } from './config/redis';
+import { createErrorResponse, createSuccessResponse, CaptchaData } from './types/index';
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-const client = createClient({
-  url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
-  password: process.env.REDIS_PASSWORD
+// 请求日志中间件
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.url} - ${req.ip}`);
+  next();
 });
-
-client.connect();
 
 app.use(express.json());
 
+// 提交验证码数据
 app.post('/api/submit', async (req, res) => {
-  const data = req.body;
-  await client.set(data.gt_user, JSON.stringify(data));
-  res.status(201).send("OK");
-});
+  try {
+    const data: CaptchaData = req.body;
+    
+    // 数据验证
+    if (!data.gt_user) {
+      return res.status(400).json(createErrorResponse('缺少gt_user字段', 400));
+    }
 
-app.get('/api/get', async (req, res) => {
-  const user = String(req.query.userid);
-  const data = await client.get(user);
-  await client.del(user);
-  res.status(data ? 200 : 204).json(data ? JSON.parse(data) : null);
-});
-
-app.get('/api/block', async (req, res) => {
-  const user = String(req.query.userid);
-  let data = await client.get(user);
-  let status = 200;
-  const start = Date.now();
-  while (!data && Date.now() - start < 28 * 1000) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    data = await client.get(user);
+    // 设置过期时间为30秒
+    await redisClient.setEx(data.gt_user, 30, JSON.stringify(data));
+    res.status(201).json(createSuccessResponse(null, '验证码数据提交成功'));
+  } catch (error) {
+    console.error('Submit API错误:', error);
+    res.status(500).json(createErrorResponse('服务器内部错误', 500));
   }
-  if (data) {
-    await client.del(user);
-    res.status(status).json(JSON.parse(data));
-  } else {
-    res.status(503).json({ error: "timed out" });
+});
+
+// 获取验证码数据（非阻塞）
+app.get('/api/get', async (req, res) => {
+  try {
+    const user = String(req.query.userid);
+    
+    if (!user || user === 'undefined') {
+      return res.status(400).json(createErrorResponse('缺少用户ID参数', 400));
+    }
+
+    const data = await redisClient.get(user);
+    
+    if (data) {
+      await redisClient.del(user);
+      const captchaData: CaptchaData = JSON.parse(data);
+      res.status(200).json(captchaData);
+    } else {
+      res.status(204).send();
+    }
+  } catch (error) {
+    console.error('Get API错误:', error);
+    res.status(500).json(createErrorResponse('服务器内部错误', 500));
+  }
+});
+
+// 获取验证码数据（阻塞等待）
+app.get('/api/block', async (req, res) => {
+  try {
+    const user = String(req.query.userid);
+    
+    if (!user || user === 'undefined') {
+      return res.status(400).json(createErrorResponse('缺少用户ID参数', 400));
+    }
+
+    let data = await redisClient.get(user);
+    const start = Date.now();
+    const timeout = 28 * 1000; // 28秒超时
+    
+    // 轮询等待数据
+    while (!data && Date.now() - start < timeout) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      data = await redisClient.get(user);
+    }
+    
+    if (data) {
+      await redisClient.del(user);
+      const captchaData: CaptchaData = JSON.parse(data);
+      res.status(200).json(captchaData);
+    } else {
+      res.status(503).json(createErrorResponse('请求超时，未获取到验证码数据', 503));
+    }
+  } catch (error) {
+    console.error('Block API错误:', error);
+    res.status(500).json(createErrorResponse('服务器内部错误', 500));
   }
 });
 

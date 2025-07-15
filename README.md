@@ -8,16 +8,10 @@
 
 2. 安装好node和pnpm，以及radis
 
-3. 项目根目录新建 `.env` 文件，配置好redis
+3. 复制 .env.example 为 .env, 按照注释配置
 
-   ```bash
-   REDIS_HOST=127.0.0.1
-   REDIS_PORT=6379
-   REDIS_PASSWORD=your_redis_password
-   ```
+4. 执行 `pnpm i` 安装依赖 
 
-4. 执行 `pnpm intstall` 
-
-5. 执行 `pnpm run dev` 
+5. 执行 `pnpm start` 启动项目
 
 6. 访问 `http://localhost:3000` ，但是需要配置好反向代理，需要在公网上访问到才能使用
